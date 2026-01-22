@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NexMart - Ultimate Grocery</title>
+    <!-- Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* --- CSS VARIABLES & THEMES --- */
+        :root {
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+            --text-muted: #6b7280;
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --whatsapp: #25D366;
+            --border: #e5e7eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f172a; --card: #1e293b; --text: #f3f4f6; --text-muted: #9ca3af; --border: #374151;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); padding-top: 170px; transition: padding 0.3s; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes scaleUp { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+        .flying-img { position: fixed; z-index: 9999; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; transition: all 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+
+        /* --- SKELETON LOADER --- */
+        .skeleton { background: #e0e0e0; border-radius: 4px; animation: shimmer 1.5s infinite linear; }
+        [data-theme="dark"] .skeleton { background: #374151; }
+        @keyframes shimmer { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        .sk-card { height: 260px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 10px; }
+        .sk-img { height: 140px; width: 100%; border-radius: 8px; margin-bottom: 10px; }
+        .sk-text { height: 15px; width: 70%; margin-bottom: 8px; }
+        .sk-text-sm { height: 12px; width: 40%; margin-bottom: 15px; }
+        .sk-btn { height: 30px; width: 100%; border-radius: 6px; }
+
+        /* --- OFFLINE BANNER --- */
+        #offlineBanner { position: fixed; top: 0; left: 0; width: 100%; background: #374151; color: white; text-align: center; padding: 5px; font-size: 0.8rem; z-index: 2000; display: none; }
+
+        /* --- HEADER --- */
+        header { position: fixed; top: 0; left: 0; width: 100%; z-index: 100; background: var(--card); border-bottom: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.3s ease; }
+        body.scrolled-down header { transform: translateY(-110px); }
+        body.scrolled-down { padding-top: 60px; }
+        .hide-on-scroll-wrapper { transition: opacity 0.3s; }
+        body.scrolled-down .hide-on-scroll-wrapper { opacity: 0; pointer-events: none; }
+
+        .top-nav { height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; background: var(--card); position: relative; z-index: 102; }
+        .logo { font-size: 1.4rem; font-weight: 800; color: var(--primary); }
+        .nav-icons { display: flex; gap: 15px; }
+        .icon-btn { background: none; border: none; font-size: 1.3rem; color: var(--text); cursor: pointer; position: relative; }
+        .badge { position: absolute; top: -5px; right: -8px; background: var(--danger); color: white; font-size: 0.7rem; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .badge.bounce { animation: bounce 0.3s; }
+
+        .search-container { padding: 5px 20px; }
+        .search-bar input { width: 100%; padding: 10px 40px 10px 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; }
+        .search-bar i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+        .promo-banner { background: linear-gradient(90deg, #10b981, #3b82f6); color: white; padding: 8px; text-align: center; font-size: 0.85rem; font-weight: bold; margin: 0 20px 10px 20px; border-radius: 8px; transition: opacity 0.5s; }
+
+        .filters { display: flex; gap: 10px; padding: 0 20px 15px 20px; overflow-x: auto; scrollbar-width: none; }
+        .filter-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text); white-space: nowrap; cursor: pointer; font-size: 0.9rem; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* --- GRID & CARDS --- */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; padding: 10px 20px 100px 20px; max-width: 1200px; margin: 0 auto; }
+        @media (max-width: 480px) { .product-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+
+        .card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); display: flex; flex-direction: column; position: relative; }
+        .heart-icon { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; cursor: pointer; color: #ccc; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .heart-icon.active { color: var(--danger); }
+
+        .card-img { width: 100%; height: 140px; object-fit: cover; }
+        .card-body { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; }
+        .stock-badge { font-size: 0.7rem; color: var(--warning); font-weight: bold; margin-bottom: 4px; display: none; }
+        .card-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 2px; }
+        .card-desc { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
+        .card-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+        .price { font-weight: 800; font-size: 1rem; }
+        .add-btn { background: var(--card); color: var(--primary); border: 1px solid var(--primary); padding: 5px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.8rem; }
+        .out-stock { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
+
+        /* --- CART & SIDEBAR --- */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 199; display: none; backdrop-filter: blur(2px); }
+        .cart-sidebar { position: fixed; top: 0; right: -100%; width: 100%; max-width: 400px; height: 100vh; background: var(--card); z-index: 200; transition: 0.3s; display: flex; flex-direction: column; }
+        .cart-sidebar.open { right: 0; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .cart-items { flex: 1; overflow-y: auto; padding: 15px; background: var(--bg); }
+        .cart-item { background: var(--card); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 10px; border: 1px solid var(--border); }
+        .qty-controls { display: flex; align-items: center; background: var(--primary); color: white; border-radius: 5px; margin-top: 5px; }
+        .qty-btn { background: none; border: none; color: white; width: 25px; cursor: pointer; font-weight: bold; }
+        .qty-val { width: 20px; text-align: center; font-size: 0.9rem; }
+        .cart-footer { padding: 15px; background: var(--card); border-top: 1px solid var(--border); }
+        
+        /* Empty Cart State */
+        .empty-cart { text-align: center; padding: 40px 20px; }
+        .empty-cart i { font-size: 3rem; color: var(--text-muted); margin-bottom: 15px; }
+        .empty-cart p { color: var(--text-muted); margin-bottom: 20px; }
+
+        .address-box { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--primary); padding: 10px; border-radius: 8px; margin-bottom: 15px; cursor: pointer; }
+        .addr-title { font-size: 0.8rem; font-weight: bold; color: var(--primary-dark); display: flex; justify-content: space-between; }
+        .addr-text { font-size: 0.9rem; margin-top: 5px; }
+
+        /* --- EXTRAS --- */
+        .section-title { padding: 0 20px; font-weight: 800; margin: 10px 0; }
+        .horizontal-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 0 20px 15px 20px; scrollbar-width: none; }
+        .mini-card { min-width: 100px; text-align: center; cursor: pointer; }
+        .mini-card img { width: 70px; height: 70px; border-radius: 12px; object-fit: cover; margin-bottom: 5px; border: 1px solid var(--border); }
+
+        .coupon-wrapper { display: flex; gap: 10px; margin-bottom: 10px; }
+        .coupon-wrapper input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; outline: none; background: var(--bg); color: var(--text); }
+        .coupon-wrapper button { padding: 8px 12px; background: var(--text); color: white; border: none; border-radius: 6px; cursor: pointer; }
+
+        /* Modals */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--card); width: 100%; max-width: 450px; padding: 25px; border-radius: 15px; position: relative; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .close-modal { position: absolute; right: 20px; top: 15px; font-size: 1.5rem; cursor: pointer; color: #999; }
+        .primary-btn, .whatsapp-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .whatsapp-btn { background: var(--whatsapp); }
+        .logout-btn { background: #fee2e2; color: #ef4444; width: 100%; padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* Slot Card */
+        .slot-container { text-align: left; margin: 15px 0; }
+        .slot-card { display: block; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+        .slot-card.selected { border-color: var(--primary); background: rgba(16, 185, 129, 0.1); }
+
+        /* Map */
+        #map { width: 100%; height: 250px; margin-top: 15px; border-radius: 10px; }
+        .map-trigger-btn { width: 100%; padding: 10px; border: 1px dashed var(--primary); background: rgba(16,185,129,0.1); color: var(--primary); border-radius: 8px; cursor: pointer; margin-bottom: 15px; }
+
+        /* Auth */
+        #authScreen { position: fixed; inset: 0; background: var(--bg); z-index: 9000; display: flex; align-items: center; justify-content: center; }
+        .auth-card { width: 90%; max-width: 400px; padding: 30px; text-align: center; background: var(--card); border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .form-input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 8px; outline: none; }
+        .input-group { text-align: left; margin-bottom: 15px; }
+
+        /* Splash */
+        #splashScreen { position: fixed; inset: 0; background: #fff; z-index: 10000; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s; }
+        .splash-content { text-align: center; animation: scaleUp 0.8s ease-out; }
+        .splash-icon { font-size: 5rem; color: var(--primary); margin-bottom: 15px; }
+
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 10px 20px; border-radius: 50px; font-size: 0.9rem; opacity: 0; transition: 0.3s; z-index: 2000; pointer-events: none; }
+        #toast.show { opacity: 1; bottom: 50px; }
+    </style>
+</head>
+<body>
+
+    <!-- 🚀 SPLASH SCREEN -->
+    <div id="splashScreen">
+        <div class="splash-content">
+            <i class="fas fa-leaf splash-icon"></i>
+            <h1>NexMart</h1>
+            <p>Fresh groceries in minutes</p>
+        </div>
+    </div>
+
+    <!-- 📶 OFFLINE BANNER -->
+    <div id="offlineBanner">You are offline. Please check your connection.</div>
+
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" style="display: none;">
+        <div class="auth-card">
+            <div style="font-size: 4rem; color: var(--primary); margin-bottom: 10px;"><i class="fas fa-leaf"></i></div>
+            <h2>Let's get started</h2>
+            <p>Enter your details to continue</p>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="loginPhone" class="form-input" placeholder="10-digit mobile number" maxlength="10" required>
+                </div>
+                <div class="input-group">
+                    <label>Name</label>
+                    <input type="text" id="loginName" class="form-input" placeholder="Your Name" required>
+                </div>
+                <button type="submit" class="primary-btn">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app" style="display: none;">
+        
+        <header id="mainHeader">
+            <div class="top-nav">
+                <div class="logo"><i class="fas fa-leaf"></i> NexMart</div>
+                <div class="nav-icons">
+                    <button class="icon-btn" onclick="ui.openAccountModal()"><i class="fas fa-user-circle"></i></button>
+                    <button class="icon-btn" onclick="ui.toggleTheme()"><i class="fas fa-moon"></i></button>
+                    <button class="icon-btn cart-trigger" onclick="ui.toggleCart()">
+                        <i class="fas fa-shopping-bag"></i>
+                        <span class="badge" id="cartBadge">0</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="hide-on-scroll-wrapper">
+                <div class="search-container">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Search 'Milk', 'Bread'...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                </div>
+                <!-- 🎁 Dynamic Promo Banner -->
+                <div class="promo-banner" id="promoBanner">🎉 Loading Offers...</div>
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="app.filterByCat('all', this)">All</button>
+                    <button class="filter-btn" onclick="app.toggleFavoritesMode(this)">❤️ Favorites</button>
+                    <button class="filter-btn" onclick="app.filterByCat('Fruits', this)">Fruits</button>
+                    <button class="filter-btn" onclick="app.filterByCat('Vegetables', this)">Veggies</button>
+                    <button class="filter-btn" onclick="app.filterByCat('Dairy', this)">Dairy</button>
+                    <button class="filter-btn" onclick="app.filterByCat('Staples', this)">Staples</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 🔄 Buy Again Section -->
+        <div id="buyAgainSection" style="display:none;">
+            <div class="section-title">Buy Again</div>
+            <div class="horizontal-scroll" id="buyAgainList"></div>
+        </div>
+
+        <!-- Product Grid with Skeleton -->
+        <div id="skeletonGrid" class="product-grid">
+            <!-- Injected via JS -->
+        </div>
+        <main class="product-grid" id="productGrid" style="display:none;"></main>
+
+        <!-- CART SIDEBAR -->
+        <div class="overlay" id="overlay" onclick="ui.closeAllSidebars()"></div>
+        <div class="cart-sidebar" id="cartSidebar">
+            <div class="sidebar-header">
+                <h3>My Basket</h3>
+                <i class="fas fa-times" onclick="ui.toggleCart()" style="cursor:pointer; font-size:1.2rem;"></i>
+            </div>
+            
+            <div class="cart-items" id="cartItems"></div>
+            
+            <div class="cart-footer" id="cartFooter">
+                <div class="address-box" onclick="ui.openAddressModal()">
+                    <div class="addr-title">
+                        <span><i class="fas fa-map-marker-alt"></i> Delivering to</span>
+                        <span style="text-decoration: underline;">CHANGE</span>
+                    </div>
+                    <div class="addr-text" id="currentAddrText">Select Address</div>
+                </div>
+
+                <div class="coupon-wrapper">
+                    <input type="text" id="couponInput" placeholder="Enter Coupon Code">
+                    <button onclick="app.applyCoupon()">Apply</button>
+                </div>
+
+                <div id="billDetails" style="margin-bottom:15px; font-size:0.9rem;"></div>
+                
+                <button class="whatsapp-btn" onclick="app.initCheckout()">
+                    Proceed to Pay <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- VARIANT SELECTOR MODAL -->
+        <div class="modal" id="variantModal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="ui.closeModal('variantModal')">&times;</span>
+                <h3>Select Size</h3>
+                <div id="variantList" style="margin-top:15px; text-align:left;"></div>
+                <button class="primary-btn" onclick="app.confirmVariant()">Add to Cart</button>
+            </div>
+        </div>
+
+        <!-- ACCOUNT MODAL -->
+        <div class="modal" id="accountModal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="ui.closeModal('accountModal')">&times;</span>
+                <div class="account-details">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-name" id="accName">Guest</div>
+                    <div class="user-phone" id="accPhone"></div>
+                </div>
+                <button class="whatsapp-btn" style="background:#3b82f6" onclick="app.contactSupport()">
+                    <i class="fab fa-whatsapp"></i> Support (24/7)
+                </button>
+                <h4 style="text-align:left; margin-top:20px;">Order History</h4>
+                <div class="order-list" id="orderList"></div>
+                <button class="logout-btn" onclick="app.logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- ADDRESS MODAL -->
+        <div class="modal" id="addressModal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="ui.closeModal('addressModal')">&times;</span>
+                <h3>Add Address</h3>
+                <button class="map-trigger-btn" onclick="ui.openMapModal()">
+                    <i class="fas fa-map-marked-alt"></i> Locate on Map
+                </button>
+                <form id="addressForm">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="flat" class="form-input" placeholder="House No" required>
+                        <input type="text" id="floor" class="form-input" placeholder="Building">
+                    </div>
+                    <input type="text" id="area" class="form-input" placeholder="Area / Road" style="margin:10px 0;" required>
+                    <input type="tel" id="addrPhone" class="form-input" placeholder="Receiver Phone" maxlength="10" required>
+                    <button type="submit" class="primary-btn" style="margin-top:15px;">Save Address</button>
+                </form>
+                <div id="savedList" style="margin-top:20px; text-align:left;"></div>
+            </div>
+        </div>
+
+        <!-- MAP MODAL -->
+        <div class="modal" id="mapModal">
+            <div class="modal-content" style="max-width:600px;">
+                <span class="close-modal" onclick="ui.closeModal('mapModal')">&times;</span>
+                <h3>Set Location</h3>
+                <div id="mapLoader" style="display:none; color:var(--primary);">Fetching location...</div>
+                <div id="map"></div>
+                <button class="primary-btn" onclick="app.confirmMapLocation()">Confirm Location</button>
+            </div>
+        </div>
+
+        <!-- SLOT MODAL -->
+        <div class="modal" id="slotModal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="ui.closeModal('slotModal')">&times;</span>
+                <h3>Select Delivery Slot</h3>
+                <div class="slot-container">
+                    <label class="slot-card selected" onclick="app.selectSlot('Express', this)">
+                        <span>🚀 Express (30 mins)</span>
+                        <input type="radio" name="slot" value="Express" checked hidden>
+                    </label>
+                    <label class="slot-card" onclick="app.selectSlot('Evening', this)">
+                        <span>🌙 Evening (6PM - 9PM)</span>
+                        <input type="radio" name="slot" value="Evening" hidden>
+                    </label>
+                </div>
+                <button class="whatsapp-btn" onclick="app.processOrder()">Place Order</button>
+            </div>
+        </div>
+
+        <!-- SUCCESS MODAL -->
+        <div class="modal" id="successModal">
+            <div class="modal-content">
+                <i class="fas fa-check-circle success-icon"></i>
+                <h2>Order Placed!</h2>
+                <p>We have received your order on WhatsApp. We will confirm shortly.</p>
+                <button class="primary-btn" onclick="ui.closeModal('successModal')">Continue Shopping</button>
+            </div>
+        </div>
+
+        <div id="toast">Message</div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- SCRIPT (MODULE TYPE) -->
+    <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqjM9-Hw0sL0YsYMxG3NrRpvnuTfzbiuI",
+      authDomain: "nexmart-bcfeb.firebaseapp.com",
+      projectId: "nexmart-bcfeb",
+      storageBucket: "nexmart-bcfeb.firebasestorage.app",
+      messagingSenderId: "268768755260",
+      appId: "1:268768755260:web:6e83b7aa7c4dfc8c2f8d39"
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    window.auth = getAuth(firebaseApp);
+    window.db = getFirestore(firebaseApp);
+
+    // --- 1. DATA (With Variants) ---
+    // Replacing LoremFlickr with Unsplash for reliability
+    const products = [
+        { id: 1, name: "Red Apples", cat: "Fruits", key: "apple", stock: 15, img: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&q=80", variants: [{label: "500g", price: 90}, {label: "1kg", price: 170}] },
+        { id: 2, name: "Bananas", cat: "Fruits", key: "banana", stock: 20, img: "https://images.unsplash.com/photo-1603833665858-e61d17a86224?w=400&q=80", variants: [{label: "6 pcs", price: 30}, {label: "1 Dozen", price: 55}] },
+        { id: 3, name: "Farm Eggs", cat: "Dairy", key: "eggs", stock: 4, img: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80", variants: [{label: "6 pcs", price: 45}, {label: "12 pcs", price: 85}] },
+        { id: 4, name: "Fresh Milk", cat: "Dairy", key: "milk", stock: 30, img: "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&q=80", variants: [{label: "500ml", price: 34}, {label: "1L", price: 65}] },
+        { id: 5, name: "Basmati Rice", cat: "Staples", key: "rice", stock: 15, img: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&q=80", variants: [{label: "1kg", price: 140}, {label: "5kg", price: 650}] },
+        { id: 6, name: "Atta (Flour)", cat: "Staples", key: "flour", stock: 12, img: "https://images.unsplash.com/photo-1627485937980-221c88ac04f9?w=400&q=80", variants: [{label: "1kg", price: 55}, {label: "5kg", price: 210}] },
+        { id: 7, name: "Potato Chips", cat: "Snacks", key: "chips", stock: 50, img: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&q=80", variants: [{label: "Small", price: 10}, {label: "Large", price: 30}] },
+        { id: 8, name: "Tomatoes", cat: "Vegetables", key: "tomato", stock: 5, img: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&q=80", variants: [{label: "500g", price: 20}, {label: "1kg", price: 38}] },
+        { id: 9, name: "Onions", cat: "Vegetables", key: "onion", stock: 0, img: "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=400&q=80", variants: [{label: "1kg", price: 30}] }, 
+        { id: 10, name: "Cooking Oil", cat: "Staples", key: "oil", stock: 18, img: "https://images.unsplash.com/photo-1474979266404-7cadd9165458?w=400&q=80", variants: [{label: "1L", price: 160}] },
+        { id: 11, name: "Bread", cat: "Staples", key: "bread", stock: 20, img: "https://images.unsplash.com/photo-1598373182133-52452f7691ef?w=400&q=80", variants: [{label: "400g", price: 40}] },
+        { id: 12, name: "Cola", cat: "Snacks", key: "soda", stock: 24, img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80", variants: [{label: "500ml", price: 40}, {label: "2L", price: 90}] }
+    ];
+
+    const coupons = {
+        'SAVE50': { min: 299, off: 50 },
+        'WELCOME10': { min: 0, off: 10 }
+    };
+
+    const promoMessages = [
+        "🎉 Use <b>SAVE50</b> for ₹50 off (Min ₹299)",
+        "🚚 <b>FREE Delivery</b> on orders above ₹499",
+        "🏷️ First time? Use <b>WELCOME10</b>"
+    ];
+
+    // --- 2. GLOBAL STATE ---
+    const state = {
+        cart: JSON.parse(localStorage.getItem('cart')) || [],
+        user: JSON.parse(localStorage.getItem('user')) || null,
+        addresses: JSON.parse(localStorage.getItem('addresses')) || [],
+        wishlist: JSON.parse(localStorage.getItem('wishlist')) || [],
+        orderHistory: JSON.parse(localStorage.getItem('orderHistory')) || [],
+        selectedAddrIdx: 0,
+        selectedSlot: 'Express',
+        appliedCoupon: null,
+        map: null,
+        marker: null,
+        tempLocation: null,
+        tempProductForVariant: null
+    };
+
+    // --- 3. CONTROLLER ---
+    const app = {
+        init: () => {
+            // Splash & Skeleton
+            ui.renderSkeleton();
+            setTimeout(() => {
+                document.getElementById('splashScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splashScreen').style.display = 'none';
+                    // Load actual data after splash
+                    ui.showApp();
+                }, 500);
+            }, 2000);
+
+            // Auth Check
+            if (!state.user) document.getElementById('authScreen').style.display = 'flex';
+
+            // Event Listeners
+            document.getElementById('loginForm').addEventListener('submit', app.login);
+            document.getElementById('addressForm').addEventListener('submit', app.saveAddress);
+            document.getElementById('searchInput').addEventListener('input', (e) => ui.renderGrid(e.target.value));
+            window.addEventListener('scroll', ui.handleScroll);
+            window.addEventListener('online', ui.updateOnlineStatus);
+            window.addEventListener('offline', ui.updateOnlineStatus);
+            
+            // Promo Rotator
+            let promoIdx = 0;
+            setInterval(() => {
+                promoIdx = (promoIdx + 1) % promoMessages.length;
+                document.querySelector('.promo-banner').innerHTML = promoMessages[promoIdx];
+            }, 3000);
+
+            if(localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
+        },
+
+        login: (e) => {
+            e.preventDefault();
+            const phone = document.getElementById('loginPhone').value;
+            const name = document.getElementById('loginName').value;
+            if(phone.length === 10 && name) {
+                state.user = { name, phone };
+                localStorage.setItem('user', JSON.stringify(state.user));
+                document.getElementById('authScreen').style.display = 'none';
+                ui.showApp();
+            } else alert("Please enter valid details");
+        },
+
+        logout: () => {
+            localStorage.removeItem('user');
+            location.reload();
+        },
+
+        // --- VARIANT & CART LOGIC ---
+        prepareAddToCart: (id, event) => {
+            const p = products.find(x => x.id === id);
+            
+            // If more than 1 variant, show modal
+            if(p.variants.length > 1) {
+                state.tempProductForVariant = p;
+                ui.openVariantModal(p);
+            } else {
+                app.addToCart(id, p.variants[0].label, p.variants[0].price, event);
+            }
+        },
+
+        confirmVariant: () => {
+            const radio = document.querySelector('input[name="variant"]:checked');
+            if(!radio) return ui.showToast("Select a size");
+            const idx = radio.value;
+            const p = state.tempProductForVariant;
+            const variant = p.variants[idx];
+            app.addToCart(p.id, variant.label, variant.price, null); // Pass null event to skip flying anim from modal
+            ui.closeModal('variantModal');
+        },
+
+        addToCart: (id, variantLabel, price, event) => {
+            const p = products.find(x => x.id === id);
+            
+            // Find specific variant item in cart
+            const item = state.cart.find(i => i.id === id && i.variant === variantLabel);
+            
+            // Stock Check
+            const totalQty = state.cart.filter(i => i.id === id).reduce((a,b)=>a+b.qty,0);
+            if(totalQty >= p.stock) {
+                ui.showToast(`Only ${p.stock} units available!`);
+                return;
+            }
+
+            if(event) ui.animateFlyToCart(id, event);
+
+            if(item) item.qty++;
+            else state.cart.push({ ...p, variant: variantLabel, price: price, qty: 1 });
+            
+            app.saveCart();
+            ui.showToast("Added to basket");
+        },
+
+        updateQty: (id, variant, change) => {
+            const item = state.cart.find(i => i.id === id && i.variant === variant);
+            if(item) {
+                if (change > 0) {
+                    const p = products.find(x => x.id === id);
+                    const totalQty = state.cart.filter(i => i.id === id).reduce((a,b)=>a+b.qty,0);
+                    if (totalQty >= p.stock) return ui.showToast("Stock limit reached");
+                }
+                item.qty += change;
+                if(item.qty <= 0) state.cart = state.cart.filter(i => i !== item);
+                app.saveCart();
+            }
+        },
+
+        saveCart: () => {
+            localStorage.setItem('cart', JSON.stringify(state.cart));
+            ui.renderCart();
+        },
+
+        toggleWishlist: (id, btn) => {
+            if(state.wishlist.includes(id)) {
+                state.wishlist = state.wishlist.filter(pid => pid !== id);
+                btn.classList.remove('active');
+            } else {
+                state.wishlist.push(id);
+                btn.classList.add('active');
+                btn.style.transform = "scale(1.3)";
+                setTimeout(() => btn.style.transform = "scale(1)", 200);
+            }
+            localStorage.setItem('wishlist', JSON.stringify(state.wishlist));
+        },
+
+        filterByCat: (cat, btn) => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            if(btn) btn.classList.add('active');
+            const items = cat === 'all' ? products : products.filter(p => p.cat === cat);
+            ui.renderGrid(null, items);
+        },
+
+        toggleFavoritesMode: (btn) => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const favs = products.filter(p => state.wishlist.includes(p.id));
+            ui.renderGrid(null, favs);
+        },
+
+        saveAddress: (e) => {
+            e.preventDefault();
+            const newAddr = {
+                flat: document.getElementById('flat').value,
+                floor: document.getElementById('floor').value,
+                area: document.getElementById('area').value,
+                phone: document.getElementById('addrPhone').value,
+                lat: state.tempLocation ? state.tempLocation.lat : null,
+                lng: state.tempLocation ? state.tempLocation.lng : null
+            };
+            state.addresses.unshift(newAddr);
+            localStorage.setItem('addresses', JSON.stringify(state.addresses));
+            state.selectedAddrIdx = 0;
+            ui.updateAddressDisplay();
+            ui.closeModal('addressModal');
+            e.target.reset();
+            state.tempLocation = null;
+        },
+
+        confirmMapLocation: () => {
+            if(!state.marker) return;
+            const lat = state.marker.getLatLng().lat;
+            const lng = state.marker.getLatLng().lng;
+            state.tempLocation = { lat, lng };
+
+            document.getElementById('mapLoader').style.display = 'block';
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(res => res.json())
+                .then(data => {
+                    ui.closeModal('mapModal');
+                    ui.openAddressModal();
+                    document.getElementById('area').value = data.address.road || data.address.suburb || "";
+                    if(data.address.house_number) document.getElementById('flat').value = data.address.house_number;
+                    ui.showToast("Location Captured!");
+                })
+                .catch(() => {
+                    ui.showToast("Network Error: Could not fetch address text");
+                    ui.closeModal('mapModal');
+                    ui.openAddressModal();
+                })
+                .finally(() => {
+                    document.getElementById('mapLoader').style.display = 'none';
+                });
+        },
+
+        applyCoupon: () => {
+            const code = document.getElementById('couponInput').value.trim();
+            const subtotal = state.cart.reduce((a, b) => a + (b.price * b.qty), 0);
+            
+            if(coupons[code]) {
+                if(subtotal >= coupons[code].min) {
+                    state.appliedCoupon = { code, ...coupons[code] };
+                    ui.renderCart();
+                    ui.showToast("Coupon Applied!");
+                } else {
+                    ui.showToast(`Min order ₹${coupons[code].min} for this code`);
+                }
+            } else {
+                ui.showToast("Invalid Coupon Code");
+            }
+        },
+
+        selectSlot: (slot, el) => {
+            state.selectedSlot = slot;
+            document.querySelectorAll('.slot-card').forEach(c => c.classList.remove('selected'));
+            el.parentElement.classList.add('selected'); // Fix for label wrap
+        },
+
+        initCheckout: () => {
+            if(state.cart.length === 0) return ui.showToast("Your basket is empty");
+            if(state.addresses.length === 0) return ui.openAddressModal();
+            document.getElementById('slotModal').classList.add('active');
+        },
+
+        processOrder: () => {
+            const addr = state.addresses[state.selectedAddrIdx];
+            const subtotal = state.cart.reduce((a, b) => a + (b.price * b.qty), 0);
+            const delivery = subtotal > 499 ? 0 : 30;
+            const discount = state.appliedCoupon ? state.appliedCoupon.off : 0;
+            const total = subtotal + delivery - discount;
+            const phone = "918096585038";
+
+            // Save Order with actual Item names for Buy Again
+            const order = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                total: total,
+                items: state.cart.map(i => i.name) // Store names for simplicity in Buy Again
+            };
+            state.orderHistory.unshift(order);
+            localStorage.setItem('orderHistory', JSON.stringify(state.orderHistory));
+
+            let msg = `*New Order from ${state.user.name}* 🛍️\n`;
+            msg += `*Slot:* ${state.selectedSlot}\n\n`;
+            state.cart.forEach(i => msg += `▪️ ${i.name} (${i.variant}) x ${i.qty} = ₹${i.price*i.qty}\n`);
+            msg += `\n*Subtotal:* ₹${subtotal}`;
+            if(discount > 0) msg += `\n*Coupon (${state.appliedCoupon.code}):* -₹${discount}`;
+            msg += `\n*Delivery:* ${delivery === 0 ? 'FREE' : '₹'+delivery}`;
+            msg += `\n*TOTAL PAYABLE: ₹${total}*`;
+            msg += `\n\n*📍 Delivery:*\nPhone: ${addr.phone}\nAddr: ${addr.flat}, ${addr.floor||''}, ${addr.area}`;
+            if(addr.lat) msg += `\nMap: https://maps.google.com/?q=${addr.lat},${addr.lng}`;
+
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+
+            state.cart = [];
+            state.appliedCoupon = null;
+            app.saveCart();
+            ui.closeModal('slotModal');
+            ui.closeAllSidebars();
+            document.getElementById('successModal').classList.add('active');
+            ui.renderBuyAgain();
+        },
+
+        contactSupport: () => {
+            window.open(`https://wa.me/919160934771`, '_blank');
+        }
+    };
+
+    // --- 4. UI HANDLER ---
+    const ui = {
+        showApp: () => {
+            document.getElementById('app').style.display = 'block';
+            document.getElementById('skeletonGrid').style.display = 'none';
+            document.getElementById('productGrid').style.display = 'grid';
+            ui.renderGrid();
+            ui.renderBuyAgain();
+            ui.renderCart();
+            ui.updateAddressDisplay();
+        },
+
+        renderSkeleton: () => {
+            const grid = document.getElementById('skeletonGrid');
+            grid.innerHTML = Array(6).fill(0).map(() => `
+                <div class="sk-card">
+                    <div class="skeleton sk-img"></div>
+                    <div class="skeleton sk-text"></div>
+                    <div class="skeleton sk-text-sm"></div>
+                    <div class="skeleton sk-btn"></div>
+                </div>
+            `).join('');
+        },
+
+        renderGrid: (term = null, customList = null) => {
+            const grid = document.getElementById('productGrid');
+            let items = customList || products;
+            
+            if (term) {
+                items = products.filter(p => p.name.toLowerCase().includes(term.toLowerCase()));
+            }
+
+            if(items.length === 0) {
+                grid.innerHTML = "<p style='width:100%; text-align:center; grid-column:1/-1; color:var(--text-muted);'>No items found.</p>";
+                return;
+            }
+
+            grid.innerHTML = items.map(p => {
+                const isOut = p.stock <= 0;
+                const isLow = p.stock > 0 && p.stock <= 5;
+                const isFav = state.wishlist.includes(p.id);
+                // Show lowest price
+                const price = p.variants[0].price;
+                
+                return `
+                <div class="card ${isOut ? 'out-stock' : ''}">
+                    <div class="heart-icon ${isFav ? 'active' : ''}" onclick="app.toggleWishlist(${p.id}, this)">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <div class="card-img-box">
+                        <img src="${p.img}" class="card-img" id="img-${p.id}" loading="lazy" alt="${p.name}">
+                    </div>
+                    <div class="card-body">
+                        <div class="stock-badge ${isLow ? 'show' : ''}" style="display:${isLow?'block':'none'}">Only ${p.stock} left</div>
+                        <div class="card-title">${p.name}</div>
+                        <div class="card-desc">${p.variants.length > 1 ? 'Multiple Options' : p.variants[0].label}</div>
+                        <div class="card-footer">
+                            <div class="price">₹${price}${p.variants.length > 1 ? '+' : ''}</div>
+                            <button class="add-btn" onclick="app.prepareAddToCart(${p.id}, event)" ${isOut ? 'disabled' : ''}>
+                                ${isOut ? 'OUT' : 'ADD'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        },
+
+        renderCart: () => {
+            const container = document.getElementById('cartItems');
+            const badge = document.getElementById('cartBadge');
+            const footer = document.getElementById('cartFooter');
+            
+            if(state.cart.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-cart">
+                        <i class="fas fa-shopping-basket"></i>
+                        <p>Your basket is empty</p>
+                        <button class="primary-btn" onclick="ui.closeAllSidebars()">Start Shopping</button>
+                    </div>
+                `;
+                footer.style.display = 'none';
+                badge.innerText = '0';
+                return;
+            }
+
+            footer.style.display = 'block';
+            
+            container.innerHTML = state.cart.map(i => `
+                <div class="cart-item">
+                    <div style="flex:1;">
+                        <div style="font-weight:600; font-size:0.9rem">${i.name}</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted)">${i.variant} • ₹${i.price}</div>
+                    </div>
+                    <div class="qty-controls">
+                        <button class="qty-btn" onclick="app.updateQty(${i.id}, '${i.variant}', -1)">-</button>
+                        <span class="qty-val">${i.qty}</span>
+                        <button class="qty-btn" onclick="app.updateQty(${i.id}, '${i.variant}', 1)">+</button>
+                    </div>
+                </div>
+            `).join('');
+
+            const subtotal = state.cart.reduce((a, b) => a + (b.price * b.qty), 0);
+            const delivery = subtotal > 499 ? 0 : (subtotal > 0 ? 30 : 0);
+            const discount = state.appliedCoupon ? state.appliedCoupon.off : 0;
+            const total = subtotal + delivery - discount;
+            
+            badge.innerText = state.cart.reduce((a,b) => a + b.qty, 0);
+
+            document.getElementById('billDetails').innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Item Total</span> <span>₹${subtotal}</span></div>
+                <div style="display:flex; justify-content:space-between; color:${delivery===0?'green':'inherit'};"><span>Delivery</span> <span>${delivery === 0 ? 'FREE' : '₹'+delivery}</span></div>
+                ${discount > 0 ? `<div style="display:flex; justify-content:space-between; color:green;"><span>Coupon</span> <span>-₹${discount}</span></div>` : ''}
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.1rem; margin-top:10px; border-top:1px dashed var(--border); padding-top:10px;"><span>To Pay</span> <span>₹${total}</span></div>
+            `;
+        },
+
+        openVariantModal: (p) => {
+            const list = document.getElementById('variantList');
+            list.innerHTML = p.variants.map((v, i) => `
+                <label class="variant-option">
+                    <span>${v.label}</span>
+                    <span>₹${v.price} <input type="radio" name="variant" value="${i}"></span>
+                </label>
+            `).join('');
+            
+            // Add click listener for visual selection
+            list.querySelectorAll('.variant-option').forEach(opt => {
+                opt.addEventListener('click', function() {
+                    list.querySelectorAll('.variant-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    this.querySelector('input').checked = true;
+                });
+            });
+            
+            document.getElementById('variantModal').classList.add('active');
+        },
+
+        renderBuyAgain: () => {
+            // Flatten all past ordered item names
+            const pastItems = state.orderHistory.flatMap(o => o.items || []);
+            // Find unique products that match past names
+            const buyAgainProducts = products.filter(p => pastItems.includes(p.name));
+            
+            if(buyAgainProducts.length === 0) return;
+            
+            document.getElementById('buyAgainSection').style.display = 'block';
+            document.getElementById('buyAgainList').innerHTML = buyAgainProducts.map(p => `
+                <div class="mini-card" onclick="app.prepareAddToCart(${p.id}, event)">
+                    <img src="${p.img}">
+                    <div style="font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</div>
+                </div>
+            `).join('');
+        },
+
+        animateFlyToCart: (id, event) => {
+            const img = document.getElementById(`img-${id}`) || event.target.closest('.card').querySelector('img');
+            if(!img) return;
+
+            const clone = img.cloneNode(true);
+            clone.classList.add('flying-img');
+            const rect = img.getBoundingClientRect();
+            const cartBtn = document.querySelector('.cart-trigger');
+            const cartRect = cartBtn.getBoundingClientRect();
+
+            clone.style.top = `${rect.top}px`;
+            clone.style.left = `${rect.left}px`;
+            document.body.appendChild(clone);
+
+            setTimeout(() => {
+                clone.style.top = `${cartRect.top + 10}px`;
+                clone.style.left = `${cartRect.left + 10}px`;
+                clone.style.width = '10px';
+                clone.style.height = '10px';
+                clone.style.opacity = '0';
+            }, 10);
+
+            setTimeout(() => {
+                clone.remove();
+                document.getElementById('cartBadge').classList.add('bounce');
+                setTimeout(() => document.getElementById('cartBadge').classList.remove('bounce'), 300);
+            }, 800);
+        },
+
+        toggleCart: () => {
+            document.getElementById('cartSidebar').classList.toggle('open');
+            const overlay = document.getElementById('overlay');
+            overlay.style.display = overlay.style.display === 'block' ? 'none' : 'block';
+        },
+
+        closeAllSidebars: () => {
+            document.getElementById('cartSidebar').classList.remove('open');
+            document.getElementById('overlay').style.display = 'none';
+        },
+
+        openAccountModal: () => {
+            document.getElementById('accName').innerText = state.user.name;
+            document.getElementById('accPhone').innerText = '+91 ' + state.user.phone;
+            
+            const list = document.getElementById('orderList');
+            if(!state.orderHistory || state.orderHistory.length === 0) {
+                list.innerHTML = "<p style='color:var(--text-muted)'>No past orders</p>";
+            } else {
+                list.innerHTML = state.orderHistory.map(o => `
+                    <div class="order-item">
+                        <div style="font-weight:bold; display:flex; justify-content:space-between">
+                            <span>📅 ${o.date}</span> <span>₹${o.total}</span>
+                        </div>
+                        <div style="font-size:0.8rem; margin-top:5px; color:var(--text-muted)">${o.items.join(', ')}</div>
+                    </div>
+                `).join('');
+            }
+            document.getElementById('accountModal').classList.add('active');
+        },
+
+        openAddressModal: () => {
+            document.getElementById('addressModal').classList.add('active');
+            ui.renderSavedAddr();
+        },
+
+        openMapModal: () => {
+            ui.closeModal('addressModal');
+            document.getElementById('mapModal').classList.add('active');
+            
+            if(!state.map) {
+                state.map = L.map('map').setView([20.5937, 78.9629], 5);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+                state.marker = L.marker([20.5937, 78.9629], {draggable: true}).addTo(state.map);
+                
+                if(navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        state.map.setView([lat, lng], 15);
+                        state.marker.setLatLng([lat, lng]);
+                    });
+                }
+                state.map.on('click', (e) => state.marker.setLatLng(e.latlng));
+            }
+            setTimeout(() => state.map.invalidateSize(), 200);
+        },
+
+        renderSavedAddr: () => {
+            const div = document.getElementById('savedList');
+            if(state.addresses.length === 0) {
+                div.innerHTML = "<p style='text-align:center; color:var(--text-muted); font-size:0.9rem;'>No saved addresses</p>";
+                return;
+            }
+            div.innerHTML = state.addresses.map((a, i) => `
+                <div style="padding:10px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="ui.setAddr(${i})">
+                    <div style="font-weight:bold; font-size:0.9rem">Address ${i+1}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted)">${a.flat}, ${a.area}</div>
+                    <div style="font-size:0.75rem; color:var(--primary)">📞 ${a.phone}</div>
+                </div>
+            `).join('');
+        },
+
+        setAddr: (i) => {
+            state.selectedAddrIdx = i;
+            ui.updateAddressDisplay();
+            ui.closeModal('addressModal');
+        },
+
+        updateAddressDisplay: () => {
+            const txt = document.getElementById('currentAddrText');
+            if(state.addresses.length > 0) {
+                const a = state.addresses[state.selectedAddrIdx];
+                txt.innerText = `${a.flat}, ${a.area}`;
+            } else {
+                txt.innerText = "Select Address";
+            }
+        },
+
+        toggleTheme: () => {
+            if(document.body.hasAttribute('data-theme')) {
+                document.body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        },
+
+        updateOnlineStatus: () => {
+            const banner = document.getElementById('offlineBanner');
+            banner.style.display = navigator.onLine ? 'none' : 'block';
+        },
+
+        closeModal: (id) => document.getElementById(id).classList.remove('active'),
+
+        handleScroll: () => {
+            if (window.scrollY > 50) document.body.classList.add('scrolled-down');
+            else document.body.classList.remove('scrolled-down');
+        },
+
+        showToast: (msg) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+    };
+
+    // Start App
+    window.onload = app.init;
+    </script>
+</body>
+</html>
